@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chengdu 6F MUVS Operator Board</title>
+    <link rel="stylesheet" href="./board.css" />
+  </head>
+  <body>
+    <div class="board-shell">
+      <div class="board-glow board-glow-a"></div>
+      <div class="board-glow board-glow-b"></div>
+
+      <header class="board-header panel-xl">
+        <div class="board-header-main">
+          <p class="board-kicker">现场操作大屏 Operator Display Board</p>
+          <h1>Chengdu 6F MUVS Real-time Dashboard</h1>
+          <p class="board-subtitle">每个料口袋数一目了然 | Bags fed per port at a glance</p>
+        </div>
+
+        <div class="board-header-side">
+          <div class="live-chip">
+            <span class="live-dot"></span>
+            <span id="boardRefreshState">Running</span>
+          </div>
+          <div class="board-header-meta">更新时间 Last refresh <strong id="boardLastRefresh">--</strong></div>
+          <div class="board-header-meta">缓存 Cache <strong id="boardCacheState">--</strong></div>
+          <div class="board-header-meta"><a class="board-nav-link" href="/nav">Navigation Hub / 导航页</a></div>
+          <div class="board-header-meta"><a class="board-nav-link" href="/">Main Dashboard / 主看板</a></div>
+        </div>
+      </header>
+
+      <section class="board-toolbar panel-xl">
+        <div class="toolbar-group">
+          <label>
+            <span>时间窗口 Time Window</span>
+            <input id="boardStartTime" type="datetime-local" />
+          </label>
+          <label>
+            <span>结束时间 End Time</span>
+            <input id="boardEndTime" type="datetime-local" />
+          </label>
+          <label>
+            <span>刷新周期 Refresh</span>
+            <select id="boardRefreshInterval">
+              <option value="60000">1 min</option>
+              <option value="120000" selected>2 min</option>
+              <option value="180000">3 min</option>
+              <option value="300000">5 min</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toolbar-actions">
+          <button id="boardVisibilityToggle" class="ghost-button" type="button">Visible Ports / 显示料口</button>
+          <button id="boardApplyButton" class="action-button" type="button">Apply / 应用</button>
+          <button id="boardFullscreenButton" class="ghost-button" type="button">Fullscreen / 全屏</button>
+        </div>
+      </section>
+
+      <section id="boardVisibilityPanel" class="panel-xl board-visibility-panel hidden-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="board-kicker">Port Visibility</p>
+            <h2>Choose Visible Ports / 选择显示料口</h2>
+          </div>
+          <span id="boardVisibilitySummary" class="board-chip">Visible 0 / Hidden 0</span>
+        </div>
+        <div class="board-visibility-actions">
+          <button id="boardShowAllPorts" class="ghost-button" type="button">Show All / 全显</button>
+          <button id="boardHideAllPorts" class="ghost-button" type="button">Hide All / 全隐藏</button>
+          <button id="boardResetPorts" class="ghost-button" type="button">Reset / 重置</button>
+          <button id="boardApplyPorts" class="action-button" type="button">Apply / 应用</button>
+        </div>
+        <div id="boardVisibilityOptions" class="board-visibility-options"></div>
+      </section>
+
+      <section class="headline-grid">
+        <article class="headline-card panel-xl accent-blue">
+          <span class="headline-label">总袋数 Total Bags</span>
+          <strong id="headlineTotalBags" class="headline-value">0</strong>
+          <span class="headline-foot">当前时间窗内累计投料袋数 / Total bags within selected window</span>
+        </article>
+        <article class="headline-card panel-xl accent-green">
+          <span class="headline-label">运行料口 Ready + Active</span>
+          <strong id="headlineActivePorts" class="headline-value">0</strong>
+          <span class="headline-foot">可投与正在投料的料口 / Ready or actively feeding ports</span>
+        </article>
+        <article class="headline-card panel-xl accent-amber">
+          <span class="headline-label">平均袋数 Avg Bags / Port</span>
+          <strong id="headlineAverageBags" class="headline-value">0.0</strong>
+          <span class="headline-foot">每个料口平均已投袋数 / Average bags fed per port</span>
+        </article>
+        <article class="headline-card panel-xl accent-rose">
+          <span class="headline-label">异常料口 Alerts</span>
+          <strong id="headlineAlertPorts" class="headline-value">0</strong>
+          <span class="headline-foot">报警或通讯异常 / Alarm or OPC exception</span>
+        </article>
+      </section>
+
+      <section class="board-overview-grid">
+        <article class="panel-xl board-summary-card">
+          <div class="section-title-row">
+            <div>
+              <p class="board-kicker">投料总览 Feeding Summary</p>
+              <h2>今日生产视图 Today Overview</h2>
+            </div>
+            <span id="boardWindowLabel" class="board-chip">Today / 今日</span>
+          </div>
+
+          <div class="bag-emphasis">
+            <div class="bag-total-ring" id="bagTotalRing" style="--progress:0;">
+              <div>
+                <span>Bags / 已投袋数</span>
+                <strong id="bagTotalRingValue">0</strong>
+              </div>
+            </div>
+
+            <div class="bag-side-metrics">
+              <div class="side-metric">
+                <span>总重量 Total Weight</span>
+                <strong id="headlineTotalWeight">0 kg</strong>
+              </div>
+              <div class="side-metric">
+                <span>就绪料口 Ready Ports</span>
+                <strong id="headlineReadyPorts">0</strong>
+              </div>
+              <div class="side-metric">
+                <span>平均完成率 Avg Completion</span>
+                <strong id="headlineCompletion">0%</strong>
+              </div>
+            </div>
+          </div>
+
+          <div id="boardBreakdown" class="board-breakdown"></div>
+        </article>
+
+        <article class="panel-xl board-activity-card">
+          <div class="section-title-row">
+            <div>
+              <p class="board-kicker">最近扫码 Latest Scans</p>
+              <h2>Recent Activity</h2>
+            </div>
+          </div>
+          <div id="boardRecentActivity" class="board-activity-list"></div>
+        </article>
+      </section>
+
+      <section class="panel-xl board-ports-section">
+        <div class="section-title-row">
+          <div>
+            <p class="board-kicker">料口袋数矩阵 Port Bag Matrix</p>
+            <h2>Port Bags Fed Board</h2>
+          </div>
+          <span id="boardPortCount" class="board-chip">0 ports</span>
+        </div>
+        <div id="boardPortsGrid" class="board-ports-grid"></div>
+      </section>
+    </div>
+
+    <template id="boardPortTemplate">
+      <article class="board-port-card panel-xl">
+        <div class="board-port-top">
+          <div>
+            <p class="board-port-code"></p>
+            <h3 class="board-port-name"></h3>
+          </div>
+          <span class="board-status-pill"></span>
+        </div>
+
+        <div class="board-bag-count-wrap">
+          <span class="board-bag-label">已投袋数 Bags Fed</span>
+          <strong class="board-bag-count">0</strong>
+        </div>
+
+        <div class="board-port-material">
+          <p class="board-material-name"></p>
+          <p class="board-material-meta"></p>
+        </div>
+
+        <div class="board-mini-metrics">
+          <div class="board-mini-box">
+            <span>重量 Weight</span>
+            <strong class="board-port-weight"></strong>
+          </div>
+          <div class="board-mini-box">
+            <span>进度 Progress</span>
+            <strong class="board-port-progress"></strong>
+          </div>
+          <div class="board-mini-box">
+            <span>最后扫码 Last Scan</span>
+            <strong class="board-port-lastscan"></strong>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="./board.js"></script>
+  </body>
+</html>

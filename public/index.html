@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chengdu 6F MUVS Real-time Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="backdrop backdrop-a"></div>
+      <div class="backdrop backdrop-b"></div>
+      <header class="hero panel">
+        <div>
+          <p class="eyebrow">MUVS Plant Intelligence Layer</p>
+          <h1>Chengdu 6F MUVS Real-time Dashboard</h1>
+          <p class="hero-copy">Real-time visibility for port readiness, material matching, and feeding throughput.</p>
+        </div>
+        <div class="hero-status">
+          <div class="pulse-chip"><span class="pulse-dot"></span><span id="refreshState">Live polling active</span></div>
+          <div class="meta-line">Last refresh <strong id="lastRefresh">--</strong></div>
+          <div class="meta-line">Data window <strong id="windowLabel">Today</strong></div>
+          <div class="meta-line"><a class="board-link" href="/nav">Open Navigation Hub</a></div>
+          <div class="meta-line"><a class="board-link" href="/board" target="_blank" rel="noreferrer">Open Operator Board</a></div>
+        </div>
+      </header>
+
+      <section class="toolbar panel">
+        <label>
+          <span>Port</span>
+          <input id="portCodeInput" type="text" placeholder="All ports" />
+        </label>
+        <label>
+          <span>Start time</span>
+          <input id="startTimeInput" type="datetime-local" />
+        </label>
+        <label>
+          <span>End time</span>
+          <input id="endTimeInput" type="datetime-local" />
+        </label>
+        <label class="toggle-wrap">
+          <span>Auto refresh</span>
+          <button id="refreshToggle" class="toggle active" type="button">ON</button>
+        </label>
+        <button id="visibilityToggleButton" class="action-button secondary-button" type="button">Choose Visible Ports</button>
+        <button id="applyFiltersButton" class="action-button" type="button">Refresh Dashboard</button>
+      </section>
+
+      <section id="visibilityPanel" class="panel visibility-panel hidden-panel">
+        <div class="section-header">
+          <div>
+            <p class="section-kicker">Port Visibility</p>
+            <h2>Choose Visible Ports</h2>
+          </div>
+          <span id="visibilitySummary" class="overview-badge">Visible 0 / Hidden 0</span>
+        </div>
+        <div class="visibility-actions">
+          <button id="selectAllPortsButton" class="ghost-button" type="button">Show All</button>
+          <button id="hideAllPortsButton" class="ghost-button" type="button">Hide All</button>
+          <button id="resetHiddenPortsButton" class="ghost-button" type="button">Reset</button>
+          <button id="applyHiddenPortsButton" class="action-button" type="button">Apply Visibility</button>
+        </div>
+        <div id="visibilityOptions" class="visibility-options"></div>
+      </section>
+
+      <section class="metrics-grid">
+        <article class="metric-card panel accent-cyan">
+          <span class="metric-label">Ports Online</span>
+          <strong id="metricTotalPorts" class="metric-value">0</strong>
+          <span class="metric-foot">Configured feeding ports in current result set</span>
+        </article>
+        <article class="metric-card panel accent-green">
+          <span class="metric-label">Ready To Feed</span>
+          <strong id="metricReadyPorts" class="metric-value">0</strong>
+          <span class="metric-foot">Second check passed and line is green</span>
+        </article>
+        <article class="metric-card panel accent-amber">
+          <span class="metric-label">Total Bags</span>
+          <strong id="metricTotalBags" class="metric-value">0</strong>
+          <span class="metric-foot">Accumulated feeding bags within selected window</span>
+        </article>
+        <article class="metric-card panel accent-rose">
+          <span class="metric-label">Alert Ports</span>
+          <strong id="metricAlertPorts" class="metric-value">0</strong>
+          <span class="metric-foot">Alarm or OPC abnormal status requiring attention</span>
+        </article>
+      </section>
+
+      <section class="analytics-grid">
+        <article class="panel command-center">
+          <div class="section-header">
+            <div>
+              <p class="section-kicker">Command center</p>
+              <h2>Plant Overview</h2>
+            </div>
+            <span id="overviewBadge" class="overview-badge">Awaiting data</span>
+          </div>
+          <div class="overview-core">
+            <div class="radial-progress" id="completionGauge" style="--progress: 0;">
+              <div class="radial-progress-inner">
+                <span>Avg. completion</span>
+                <strong id="completionValue">0%</strong>
+              </div>
+            </div>
+            <div class="overview-stats">
+              <div>
+                <span>Total Weight</span>
+                <strong id="metricTotalWeight">0 kg</strong>
+              </div>
+              <div>
+                <span>Active Ports</span>
+                <strong id="metricActivePorts">0</strong>
+              </div>
+              <div>
+                <span>Polling Status</span>
+                <strong id="pollingMode">AUTO</strong>
+              </div>
+            </div>
+          </div>
+          <div id="statusBreakdown" class="status-breakdown"></div>
+        </article>
+
+        <article class="panel recent-activity">
+          <div class="section-header">
+            <div>
+              <p class="section-kicker">Recent trace</p>
+              <h2>Latest Scan Activity</h2>
+            </div>
+          </div>
+          <div id="recentScans" class="timeline"></div>
+        </article>
+      </section>
+
+      <section class="panel ports-section">
+        <div class="section-header">
+          <div>
+            <p class="section-kicker">Port matrix</p>
+            <h2>Feeding Port Status</h2>
+          </div>
+          <span id="portCountLabel" class="port-count">0 ports</span>
+        </div>
+        <div id="portsGrid" class="ports-grid"></div>
+      </section>
+    </div>
+
+    <template id="portCardTemplate">
+      <article class="port-card panel">
+        <div class="port-card-top">
+          <div>
+            <p class="port-code"></p>
+            <h3 class="port-name"></h3>
+          </div>
+          <span class="status-pill"></span>
+        </div>
+        <div class="port-progress">
+          <div class="mini-gauge"><span></span></div>
+          <div class="progress-copy">
+            <strong class="progress-value"></strong>
+            <span class="progress-detail"></span>
+          </div>
+        </div>
+        <div class="material-block">
+          <p class="material-name"></p>
+          <p class="material-meta"></p>
+        </div>
+        <div class="signals"></div>
+        <div class="port-meta-grid"></div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

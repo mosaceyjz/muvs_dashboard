@@ -1,0 +1,195 @@
+:root {
+  --bg: #04101d;
+  --panel: rgba(8, 21, 38, 0.84);
+  --line: rgba(109, 210, 255, 0.16);
+  --text: #eff9ff;
+  --muted: #92adbf;
+  --cyan: #66d8ff;
+  --green: #62ffbc;
+  --violet: #8aa9ff;
+  --shadow: 0 26px 64px rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Bahnschrift", "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(63, 130, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 78% 16%, rgba(0, 226, 196, 0.14), transparent 24%),
+    linear-gradient(135deg, #030814 0%, #071220 54%, #071829 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(102, 216, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(102, 216, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.nav-shell {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.nav-glow {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(110px);
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.nav-glow-a {
+  width: 320px;
+  height: 320px;
+  top: -120px;
+  right: 10%;
+  background: rgba(66, 143, 255, 0.26);
+}
+
+.nav-glow-b {
+  width: 280px;
+  height: 280px;
+  left: -60px;
+  bottom: 8%;
+  background: rgba(98, 255, 188, 0.14);
+}
+
+.panel-nav {
+  position: relative;
+  background: linear-gradient(180deg, rgba(12, 28, 50, 0.92), rgba(7, 18, 33, 0.88));
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+}
+
+.panel-nav::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 27px;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  pointer-events: none;
+}
+
+.nav-hero,
+.nav-card {
+  padding: 26px;
+}
+
+.nav-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 0.8fr);
+  gap: 20px;
+}
+
+.nav-kicker,
+.nav-card-kicker {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+h1,
+h2,
+p,
+ul {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(36px, 4vw, 58px);
+  line-height: 0.98;
+}
+
+h2 {
+  font-size: clamp(28px, 2.5vw, 40px);
+}
+
+.nav-subtitle,
+.nav-card-copy,
+.access-box p {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.nav-badges {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.nav-badge,
+.nav-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 216, 255, 0.16);
+  background: rgba(7, 18, 33, 0.82);
+}
+
+.nav-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.nav-card-primary {
+  background: linear-gradient(180deg, rgba(14, 31, 58, 0.92), rgba(7, 18, 33, 0.88));
+}
+
+.nav-card-secondary {
+  background: linear-gradient(180deg, rgba(10, 32, 49, 0.92), rgba(7, 18, 33, 0.88));
+}
+
+.nav-points {
+  margin-top: 18px;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.nav-action {
+  margin-top: 22px;
+  width: fit-content;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(102, 216, 255, 0.24), rgba(138, 169, 255, 0.22));
+}
+
+@media (max-width: 960px) {
+  .nav-hero,
+  .nav-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .nav-shell {
+    padding: 16px;
+  }
+
+  .nav-hero,
+  .nav-card {
+    padding: 18px;
+  }
+}
