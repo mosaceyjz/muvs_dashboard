@@ -1,6 +1,4 @@
 const boardElements = {
-  startTime: document.getElementById('boardStartTime'),
-  endTime: document.getElementById('boardEndTime'),
   refreshInterval: document.getElementById('boardRefreshInterval'),
   visibilityToggle: document.getElementById('boardVisibilityToggle'),
   applyButton: document.getElementById('boardApplyButton'),
@@ -17,8 +15,8 @@ const boardElements = {
   cacheState: document.getElementById('boardCacheState'),
   totalBags: document.getElementById('headlineTotalBags'),
   activePorts: document.getElementById('headlineActivePorts'),
-  averageBags: document.getElementById('headlineAverageBags'),
   alertPorts: document.getElementById('headlineAlertPorts'),
+  bypassPorts: document.getElementById('headlineBypassPorts'),
   totalWeight: document.getElementById('headlineTotalWeight'),
   readyPorts: document.getElementById('headlineReadyPorts'),
   completion: document.getElementById('headlineCompletion'),
@@ -63,12 +61,16 @@ function toLocalInput(date) {
   return `${date.getFullYear()}-${boardPad(date.getMonth() + 1)}-${boardPad(date.getDate())}T${boardPad(date.getHours())}:${boardPad(date.getMinutes())}`;
 }
 
-function initializeBoardWindow() {
+function getBoardTodayWindow() {
   const now = new Date();
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
-  boardElements.startTime.value = toLocalInput(start);
-  boardElements.endTime.value = toLocalInput(now);
+  return {
+    start,
+    end: now,
+    startInput: toLocalInput(start),
+    endInput: toLocalInput(now)
+  };
 }
 
 function boardFormatNumber(value, digits = 0) {
@@ -99,13 +101,10 @@ function boardFormatTimestamp(value) {
 }
 
 function boardQuery() {
+  const todayWindow = getBoardTodayWindow();
   const params = new URLSearchParams();
-  if (boardElements.startTime.value) {
-    params.set('startTime', boardElements.startTime.value);
-  }
-  if (boardElements.endTime.value) {
-    params.set('endTime', boardElements.endTime.value);
-  }
+  params.set('startTime', todayWindow.startInput);
+  params.set('endTime', todayWindow.endInput);
   if (boardState.hiddenPorts.length) {
     params.set('hiddenPorts', boardState.hiddenPorts.join(','));
   }
@@ -158,7 +157,13 @@ function boardStatusText(status) {
     'Power On': 'Power On / 已上电',
     Locked: 'Locked / 锁定',
     Alarm: 'Alarm / 报警',
-    Bypass: 'Bypass / 旁路',
+    'Bypass Active': 'Bypass Active / 旁路开启',
+    'Bypass On': 'Bypass On / 旁路开启',
+    'Bypass Off': 'Bypass Off / 未旁路',
+    'Red Lamp On': 'Red Lamp On / 红灯亮',
+    'Green Lamp On': 'Green Lamp On / 绿灯亮',
+    'Red + Green On': 'Red + Green On / 红绿灯同时亮',
+    'Lamp Off': 'Lamp Off / 灯灭',
     'OPC Fault': 'OPC Fault / 通讯异常',
     Idle: 'Idle / 待机'
   };
@@ -170,23 +175,34 @@ function boardTone(statusTone) {
   return `tone-${statusTone || 'muted'}`;
 }
 
+function boardStateBadge(label, stateItem) {
+  return `
+    <div class="board-state-badge ${boardTone(stateItem.tone)}">
+      <span>${label}</span>
+      <strong>${boardStatusText(stateItem.label)}</strong>
+    </div>
+  `;
+}
+
 function boardSetState(message, healthy) {
   boardElements.refreshState.textContent = message;
   document.querySelector('.live-dot').style.background = healthy ? 'var(--green)' : 'var(--rose)';
 }
 
 function boardRenderHeadlines(summary) {
-  const averageBags = summary.totalPorts ? summary.totalPutBags / summary.totalPorts : 0;
+  const bypassPorts = Number(summary.bypassPorts || 0);
+  const bypassKpiCard = boardElements.bypassPorts.closest('.headline-card');
   boardElements.totalBags.textContent = boardFormatNumber(summary.totalPutBags);
   boardElements.activePorts.textContent = boardFormatNumber(summary.activePorts);
-  boardElements.averageBags.textContent = boardFormatNumber(averageBags, 1);
   boardElements.alertPorts.textContent = boardFormatNumber(summary.alertPorts);
+  boardElements.bypassPorts.textContent = boardFormatNumber(bypassPorts);
   boardElements.totalWeight.textContent = `${boardFormatNumber(summary.totalPutWeight, 2)} kg`;
   boardElements.readyPorts.textContent = boardFormatNumber(summary.readyPorts);
   boardElements.completion.textContent = `${boardFormatNumber(summary.completionAverage, 1)}%`;
   boardElements.bagRingValue.textContent = boardFormatNumber(summary.totalPutBags);
   const ringProgress = Math.min(summary.totalPutBags * 10, 100);
   boardElements.bagRing.style.setProperty('--progress', ringProgress);
+  bypassKpiCard.classList.toggle('kpi-critical-active', bypassPorts > 0);
 }
 
 function boardRenderBreakdown(summary) {
@@ -197,7 +213,7 @@ function boardRenderBreakdown(summary) {
     idle: '待机 Idle',
     locked: '锁定 Locked',
     alarm: '报警 Alarm',
-    bypass: '旁路 Bypass',
+    bypass: '旁路开启 Bypass',
     'opc-error': '异常 OPC Fault'
   };
   const tones = {
@@ -207,7 +223,7 @@ function boardRenderBreakdown(summary) {
     idle: 'tone-muted',
     locked: 'tone-warning',
     alarm: 'tone-critical',
-    bypass: 'tone-notice',
+    bypass: 'tone-critical',
     'opc-error': 'tone-critical'
   };
 
@@ -263,15 +279,23 @@ function boardRenderPorts(ports) {
 
   orderedPorts.forEach((port) => {
     const node = boardElements.portTemplate.content.firstElementChild.cloneNode(true);
+    if (port.tags.bypass) {
+      node.classList.add('board-port-bypass');
+    }
     node.querySelector('.board-port-code').textContent = `Port ${port.portCode}`;
     node.querySelector('.board-port-name').textContent = `${port.portName || `Port ${port.portCode}`}`;
     const pill = node.querySelector('.board-status-pill');
-    pill.textContent = boardStatusText(port.status.label);
-    pill.classList.add(boardTone(port.status.tone));
+    pill.textContent = boardStatusText(port.portState.label);
+    pill.classList.add(boardTone(port.portState.tone));
 
     node.querySelector('.board-bag-count').textContent = boardFormatNumber(port.totalPutBags);
     node.querySelector('.board-material-name').textContent = port.materialName || 'No material / 无物料';
     node.querySelector('.board-material-meta').textContent = `Code ${port.materialCode || '--'} | Batch ${port.batchCode || '--'}`;
+    node.querySelector('.board-state-strip').innerHTML = [
+      boardStateBadge('Port / 口状态', port.portState),
+      boardStateBadge('Lamp / 灯状态', port.lampState),
+      boardStateBadge('Bypass / 旁路', port.bypassState)
+    ].join('');
     node.querySelector('.board-port-weight').textContent = `${boardFormatNumber(port.totalPutWeight, 2)} kg`;
     node.querySelector('.board-port-progress').textContent = `${boardFormatNumber(port.progress, 0)}%`;
     node.querySelector('.board-port-lastscan').textContent = boardFormatTimestamp(port.lastScanTime);
@@ -281,7 +305,8 @@ function boardRenderPorts(ports) {
 }
 
 function boardUpdateWindowLabel() {
-  boardElements.windowLabel.textContent = `${boardElements.startTime.value || '--'} -> ${boardElements.endTime.value || '--'}`;
+  const todayWindow = getBoardTodayWindow();
+  boardElements.windowLabel.textContent = `今日 Today | ${todayWindow.startInput.replace('T', ' ')} -> ${todayWindow.endInput.replace('T', ' ')}`;
 }
 
 async function boardLoad() {
@@ -363,6 +388,5 @@ boardElements.fullscreenButton.addEventListener('click', async () => {
   await document.exitFullscreen();
 });
 
-initializeBoardWindow();
 boardResetTimer();
 boardLoad();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -32,14 +32,10 @@
 
       <section class="board-toolbar panel-xl">
         <div class="toolbar-group">
-          <label>
-            <span>时间窗口 Time Window</span>
-            <input id="boardStartTime" type="datetime-local" />
-          </label>
-          <label>
-            <span>结束时间 End Time</span>
-            <input id="boardEndTime" type="datetime-local" />
-          </label>
+          <div class="board-toolbar-note">
+            <span>显示范围 Time Window</span>
+            <strong>今日 00:00 到当前时间 Today 00:00 to now</strong>
+          </div>
           <label>
             <span>刷新周期 Refresh</span>
             <select id="boardRefreshInterval">
@@ -53,7 +49,7 @@
 
         <div class="toolbar-actions">
           <button id="boardVisibilityToggle" class="ghost-button" type="button">Visible Ports / 显示料口</button>
-          <button id="boardApplyButton" class="action-button" type="button">Apply / 应用</button>
+          <button id="boardApplyButton" class="action-button" type="button">Refresh Now / 立即刷新</button>
           <button id="boardFullscreenButton" class="ghost-button" type="button">Fullscreen / 全屏</button>
         </div>
       </section>
@@ -86,15 +82,15 @@
           <strong id="headlineActivePorts" class="headline-value">0</strong>
           <span class="headline-foot">可投与正在投料的料口 / Ready or actively feeding ports</span>
         </article>
-        <article class="headline-card panel-xl accent-amber">
-          <span class="headline-label">平均袋数 Avg Bags / Port</span>
-          <strong id="headlineAverageBags" class="headline-value">0.0</strong>
-          <span class="headline-foot">每个料口平均已投袋数 / Average bags fed per port</span>
-        </article>
         <article class="headline-card panel-xl accent-rose">
           <span class="headline-label">异常料口 Alerts</span>
           <strong id="headlineAlertPorts" class="headline-value">0</strong>
           <span class="headline-foot">报警或通讯异常 / Alarm or OPC exception</span>
+        </article>
+        <article class="headline-card panel-xl accent-rose">
+          <span class="headline-label">旁路料口 Bypass Ports</span>
+          <strong id="headlineBypassPorts" class="headline-value">0</strong>
+          <span class="headline-foot">当前处于旁路状态的料口 / Ports currently in bypass status</span>
         </article>
       </section>
 
@@ -177,6 +173,8 @@
           <p class="board-material-name"></p>
           <p class="board-material-meta"></p>
         </div>
+
+        <div class="board-state-strip"></div>
 
         <div class="board-mini-metrics">
           <div class="board-mini-box">

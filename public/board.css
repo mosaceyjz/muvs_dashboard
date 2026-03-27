@@ -207,6 +207,21 @@ h2 {
   gap: 8px;
 }
 
+.board-toolbar-note {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(7, 18, 33, 0.6);
+  border: 1px solid rgba(95, 215, 255, 0.12);
+}
+
+.board-toolbar-note strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .toolbar-group span {
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -342,6 +357,27 @@ button {
   margin-top: 12px;
 }
 
+.headline-card.kpi-critical-active {
+  border-color: rgba(255, 103, 132, 0.48);
+  background: linear-gradient(180deg, rgba(58, 11, 23, 0.96), rgba(24, 8, 16, 0.95));
+  box-shadow: 0 24px 52px rgba(255, 62, 94, 0.24);
+}
+
+.headline-card.kpi-critical-active::before {
+  opacity: 0.38;
+  transform: scale(1.08);
+}
+
+.headline-card.kpi-critical-active .headline-label,
+.headline-card.kpi-critical-active .headline-foot {
+  color: rgba(255, 225, 230, 0.92);
+}
+
+.headline-card.kpi-critical-active .headline-value {
+  color: #ffd4db;
+  text-shadow: 0 0 22px rgba(255, 114, 140, 0.28);
+}
+
 .board-overview-grid {
   margin-top: 18px;
   display: grid;
@@ -470,6 +506,16 @@ button {
   border-color: rgba(95, 215, 255, 0.28);
 }
 
+.board-port-bypass {
+  border-color: rgba(255, 93, 120, 0.45);
+  background: linear-gradient(180deg, rgba(52, 9, 18, 0.96), rgba(21, 8, 15, 0.96));
+  box-shadow: 0 20px 50px rgba(255, 54, 86, 0.18);
+}
+
+.board-port-bypass:hover {
+  border-color: rgba(255, 93, 120, 0.62);
+}
+
 .board-port-top {
   display: flex;
   justify-content: space-between;
@@ -511,6 +557,35 @@ button {
 
 .board-port-material {
   margin-top: 16px;
+}
+
+.board-state-strip {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.board-state-badge {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(8, 18, 34, 0.74);
+  border: 1px solid rgba(135, 207, 255, 0.12);
+}
+
+.board-state-badge span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.board-state-badge strong {
+  display: block;
+  line-height: 1.4;
 }
 
 .board-material-name {
@@ -582,6 +657,7 @@ button {
   .board-breakdown,
   .bag-side-metrics,
   .board-mini-metrics,
+  .board-state-strip,
   .board-ports-grid,
   .board-visibility-options {
     grid-template-columns: 1fr;

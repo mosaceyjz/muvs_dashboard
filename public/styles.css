@@ -358,6 +358,27 @@ input:focus,
   max-width: 28ch;
 }
 
+.metric-card.kpi-critical-active {
+  border-color: rgba(255, 103, 132, 0.48);
+  background: linear-gradient(180deg, rgba(52, 10, 20, 0.96), rgba(20, 7, 13, 0.94));
+  box-shadow: 0 22px 48px rgba(255, 62, 94, 0.22);
+}
+
+.metric-card.kpi-critical-active::before {
+  opacity: 0.42;
+  transform: scale(1.08);
+}
+
+.metric-card.kpi-critical-active .metric-label,
+.metric-card.kpi-critical-active .metric-foot {
+  color: rgba(255, 221, 227, 0.9);
+}
+
+.metric-card.kpi-critical-active .metric-value {
+  color: #ffd4db;
+  text-shadow: 0 0 20px rgba(255, 114, 140, 0.26);
+}
+
 .analytics-grid {
   margin-top: 24px;
   display: grid;
@@ -502,6 +523,67 @@ input:focus,
   margin-top: 24px;
 }
 
+.history-section {
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.history-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+  max-height: 720px;
+  overflow: auto;
+}
+
+.history-item {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(7, 19, 35, 0.78);
+  border: 1px solid rgba(125, 195, 255, 0.1);
+}
+
+.history-item-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.history-item-main h3 {
+  margin-top: 6px;
+  font-size: 22px;
+}
+
+.history-port {
+  color: var(--cyan);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.material-label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.history-meta-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .ports-grid {
   margin-top: 18px;
   display: grid;
@@ -614,6 +696,35 @@ input:focus,
   line-height: 1.5;
 }
 
+.state-strip {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.state-badge {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(125, 195, 255, 0.08);
+  background: rgba(6, 17, 31, 0.72);
+}
+
+.state-badge span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.state-badge strong {
+  display: block;
+  line-height: 1.4;
+}
+
 .signals,
 .port-meta-grid {
   margin-top: 16px;
@@ -663,7 +774,8 @@ input:focus,
 
   .overview-stats,
   .status-breakdown,
-  .visibility-options {
+  .visibility-options,
+  .history-meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -678,6 +790,7 @@ input:focus,
   .command-center,
   .recent-activity,
   .ports-section,
+  .history-section,
   .metric-card {
     padding: 18px;
   }
@@ -685,7 +798,9 @@ input:focus,
   .overview-stats,
   .status-breakdown,
   .signals,
+  .state-strip,
   .port-meta-grid,
+  .history-meta-grid,
   .visibility-options {
     grid-template-columns: 1fr;
   }
@@ -694,6 +809,8 @@ input:focus,
   .timeline-item-top,
   .section-header,
   .port-card-top,
+  .history-item-main,
+  .history-actions,
   .visibility-actions {
     flex-direction: column;
     align-items: flex-start;

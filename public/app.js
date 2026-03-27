@@ -19,6 +19,7 @@ const elements = {
   metricReadyPorts: document.getElementById('metricReadyPorts'),
   metricTotalBags: document.getElementById('metricTotalBags'),
   metricAlertPorts: document.getElementById('metricAlertPorts'),
+  metricBypassPorts: document.getElementById('metricBypassPorts'),
   metricTotalWeight: document.getElementById('metricTotalWeight'),
   metricActivePorts: document.getElementById('metricActivePorts'),
   completionGauge: document.getElementById('completionGauge'),
@@ -29,6 +30,10 @@ const elements = {
   recentScans: document.getElementById('recentScans'),
   portsGrid: document.getElementById('portsGrid'),
   portCountLabel: document.getElementById('portCountLabel'),
+  historyCountLabel: document.getElementById('historyCountLabel'),
+  historyRecords: document.getElementById('historyRecords'),
+  exportHistoryCsvButton: document.getElementById('exportHistoryCsvButton'),
+  exportHistoryExcelButton: document.getElementById('exportHistoryExcelButton'),
   portCardTemplate: document.getElementById('portCardTemplate')
 };
 
@@ -37,7 +42,8 @@ const state = {
   timerId: null,
   pollingMs: 15000,
   hiddenPorts: loadHiddenPorts(),
-  availablePorts: []
+  availablePorts: [],
+  historyRecords: []
 };
 
 const hiddenPortsStorageKey = 'muvs-dashboard-hidden-ports';
@@ -100,11 +106,151 @@ function formatTimestamp(value) {
   }).format(date);
 }
 
+function formatFileStamp(date = new Date()) {
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function escapeCsvValue(value) {
+  const normalized = String(value ?? '');
+  if (normalized.includes(',') || normalized.includes('"') || normalized.includes('\n')) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+}
+
+function downloadBlob(content, fileName, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function getHistoryExportRows() {
+  return state.historyRecords.map((historyItem) => ({
+    portCode: historyItem.portCode || '',
+    portName: historyItem.portName || '',
+    materialCode: historyItem.materialCode || '',
+    materialName: historyItem.materialName || '',
+    batchCode: historyItem.batchCode || '',
+    pushWeight: Number(historyItem.pushWeight || 0),
+    scanTime: formatTimestamp(historyItem.scanTime),
+    scanUser: historyItem.scanUser || ''
+  }));
+}
+
+function exportHistoryCsv() {
+  const rows = getHistoryExportRows();
+  if (!rows.length) {
+    return;
+  }
+
+  const headers = ['PortCode', 'PortName', 'MaterialCode', 'MaterialName', 'BatchCode', 'PushWeightKg', 'ScanTime', 'ScanUser'];
+  const lines = [headers.join(',')];
+
+  rows.forEach((row) => {
+    lines.push([
+      row.portCode,
+      row.portName,
+      row.materialCode,
+      row.materialName,
+      row.batchCode,
+      row.pushWeight,
+      row.scanTime,
+      row.scanUser
+    ].map(escapeCsvValue).join(','));
+  });
+
+  downloadBlob(`\uFEFF${lines.join('\r\n')}`, `muvs_history_${formatFileStamp()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function exportHistoryExcel() {
+  const rows = getHistoryExportRows();
+  if (!rows.length) {
+    return;
+  }
+
+  const tableRows = rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.portCode)}</td>
+      <td>${escapeHtml(row.portName)}</td>
+      <td>${escapeHtml(row.materialCode)}</td>
+      <td>${escapeHtml(row.materialName)}</td>
+      <td>${escapeHtml(row.batchCode)}</td>
+      <td>${escapeHtml(row.pushWeight)}</td>
+      <td>${escapeHtml(row.scanTime)}</td>
+      <td>${escapeHtml(row.scanUser)}</td>
+    </tr>
+  `).join('');
+
+  const workbook = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8" />
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th>PortCode</th>
+              <th>PortName</th>
+              <th>MaterialCode</th>
+              <th>MaterialName</th>
+              <th>BatchCode</th>
+              <th>PushWeightKg</th>
+              <th>ScanTime</th>
+              <th>ScanUser</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  downloadBlob(`\uFEFF${workbook}`, `muvs_history_${formatFileStamp()}.xls`, 'application/vnd.ms-excel;charset=utf-8;');
+}
+
+function statusText(status) {
+  const dictionary = {
+    'Ready To Feed': '可投料 Ready To Feed',
+    Feeding: '投料中 Feeding',
+    'Power On': '已上电 Power On',
+    Locked: '锁定 Locked',
+    Alarm: '报警 Alarm',
+    'Bypass Active': '旁路开启 Bypass Active',
+    'Bypass On': '旁路开启 Bypass On',
+    'Bypass Off': '未旁路 Bypass Off',
+    'Red Lamp On': '红灯亮 Red Lamp On',
+    'Green Lamp On': '绿灯亮 Green Lamp On',
+    'Red + Green On': '红绿灯同时亮 Red + Green On',
+    'Lamp Off': '灯灭 Lamp Off',
+    'History Record': '历史投料 History Record',
+    'OPC Fault': '通讯异常 OPC Fault',
+    Idle: '待机 Idle'
+  };
+
+  return dictionary[status] || status;
+}
+
 function getWindowLabel() {
   const start = elements.startTimeInput.value;
   const end = elements.endTimeInput.value;
   if (!start && !end) {
-    return 'Procedure default window';
+    return '存储过程默认窗口 / Procedure default window';
   }
   return `${start || '--'} -> ${end || '--'}`;
 }
@@ -139,14 +285,14 @@ function collectHiddenPortsFromPanel() {
 function updateVisibilitySummary() {
   const hiddenCount = collectHiddenPortsFromPanel().length;
   const visibleCount = Math.max(state.availablePorts.length - hiddenCount, 0);
-  elements.visibilitySummary.textContent = `Visible ${visibleCount} / Hidden ${hiddenCount}`;
+  elements.visibilitySummary.textContent = `显示 ${visibleCount} / 隐藏 ${hiddenCount} | Visible ${visibleCount} / Hidden ${hiddenCount}`;
 }
 
 function renderVisibilityOptions() {
   elements.visibilityOptions.innerHTML = '';
 
   if (!state.availablePorts.length) {
-    elements.visibilityOptions.innerHTML = '<div class="empty-state">No ports loaded yet.</div>';
+    elements.visibilityOptions.innerHTML = '<div class="empty-state">尚未加载料口数据。 No ports loaded yet.</div>';
     return;
   }
 
@@ -172,16 +318,20 @@ function setVisibilityCheckboxes(checked) {
 }
 
 function renderSummary(summary) {
+  const bypassPorts = Number(summary.bypassPorts || 0);
+  const bypassKpiCard = elements.metricBypassPorts.closest('.metric-card');
   elements.metricTotalPorts.textContent = formatNumber(summary.totalPorts);
   elements.metricReadyPorts.textContent = formatNumber(summary.readyPorts);
   elements.metricTotalBags.textContent = formatNumber(summary.totalPutBags);
   elements.metricAlertPorts.textContent = formatNumber(summary.alertPorts);
+  elements.metricBypassPorts.textContent = formatNumber(bypassPorts);
   elements.metricTotalWeight.textContent = `${formatNumber(summary.totalPutWeight, 2)} kg`;
   elements.metricActivePorts.textContent = formatNumber(summary.activePorts);
   elements.completionValue.textContent = `${formatNumber(summary.completionAverage, 1)}%`;
   elements.completionGauge.style.setProperty('--progress', summary.completionAverage);
-  elements.overviewBadge.textContent = summary.alertPorts > 0 ? 'Attention required' : 'System stable';
-  elements.portCountLabel.textContent = `${summary.totalPorts} ports${summary.hiddenPortCount ? ` | Hidden ${summary.hiddenPortCount}` : ''}`;
+  elements.overviewBadge.textContent = summary.alertPorts > 0 ? '需要关注 Attention required' : '系统稳定 System stable';
+  elements.portCountLabel.textContent = `${summary.totalPorts} 个料口 ${summary.totalPorts} ports${summary.hiddenPortCount ? ` | 已隐藏 ${summary.hiddenPortCount} | Hidden ${summary.hiddenPortCount}` : ''}`;
+  bypassKpiCard.classList.toggle('kpi-critical-active', bypassPorts > 0);
 }
 
 function createBreakdownCard(statusKey, count) {
@@ -193,18 +343,18 @@ function createBreakdownCard(statusKey, count) {
     idle: 'tone-muted',
     locked: 'tone-warning',
     alarm: 'tone-critical',
-    bypass: 'tone-notice',
+    bypass: 'tone-critical',
     'opc-error': 'tone-critical'
   };
   const labelMap = {
-    ready: 'Ready',
-    feeding: 'Feeding',
-    armed: 'Power On',
-    idle: 'Idle',
-    locked: 'Locked',
-    alarm: 'Alarm',
-    bypass: 'Bypass',
-    'opc-error': 'OPC Fault'
+    ready: '可投料 Ready',
+    feeding: '投料中 Feeding',
+    armed: '已上电 Power On',
+    idle: '待机 Idle',
+    locked: '锁定 Locked',
+    alarm: '报警 Alarm',
+    bypass: '旁路开启 Bypass Active',
+    'opc-error': '通讯异常 OPC Fault'
   };
 
   card.className = `breakdown-card ${toneMap[statusKey] || 'tone-muted'}`;
@@ -227,7 +377,7 @@ function renderRecentScans(summary) {
   elements.recentScans.innerHTML = '';
 
   if (!summary.recentScans.length) {
-    elements.recentScans.innerHTML = '<div class="empty-state">No scan activity found in the current time window.</div>';
+    elements.recentScans.innerHTML = '<div class="empty-state">当前时间范围内没有扫码记录。 No scan activity found in the current time window.</div>';
     return;
   }
 
@@ -237,9 +387,9 @@ function renderRecentScans(summary) {
     wrapper.innerHTML = `
       <div class="timeline-item-top">
         <strong>${item.portName || `Port ${item.portCode}`}</strong>
-        <span class="status-pill tone-active">${item.status}</span>
+        <span class="status-pill tone-active">${statusText(item.status)}</span>
       </div>
-      <p>${item.materialName || 'No material assigned'} | ${formatNumber(item.totalPutWeight, 2)} kg</p>
+      <p>${item.materialName || '未分配物料 / No material assigned'} | ${formatNumber(item.totalPutWeight, 2)} kg</p>
       <p>${formatTimestamp(item.lastScanTime)}</p>
     `;
     elements.recentScans.appendChild(wrapper);
@@ -251,6 +401,15 @@ function createSignal(label, active) {
     <div class="signal-item">
       <span>${label}</span>
       <span class="signal-badge ${active ? 'signal-on' : 'signal-off'}"></span>
+    </div>
+  `;
+}
+
+function createStateBadge(label, stateItem) {
+  return `
+    <div class="state-badge tone-${stateItem.tone}">
+      <span>${label}</span>
+      <strong>${statusText(stateItem.label)}</strong>
     </div>
   `;
 }
@@ -268,7 +427,7 @@ function renderPorts(ports) {
   elements.portsGrid.innerHTML = '';
 
   if (!ports.length) {
-    elements.portsGrid.innerHTML = '<div class="empty-state">No port records matched the selected filters.</div>';
+    elements.portsGrid.innerHTML = '<div class="empty-state">当前筛选条件下没有料口数据。 No port records matched the selected filters.</div>';
     return;
   }
 
@@ -277,34 +436,73 @@ function renderPorts(ports) {
     node.querySelector('.port-code').textContent = `Port ${port.portCode}`;
     node.querySelector('.port-name').textContent = port.portName || `Port ${port.portCode}`;
     const statusPill = node.querySelector('.status-pill');
-    statusPill.textContent = port.status.label;
+    statusPill.textContent = statusText(port.status.label);
     statusPill.classList.add(`tone-${port.status.tone}`);
 
     const gauge = node.querySelector('.mini-gauge');
     gauge.style.setProperty('--progress', port.progress);
     gauge.querySelector('span').textContent = `${Math.round(port.progress)}%`;
     node.querySelector('.progress-value').textContent = `${formatNumber(port.totalPutWeight, 2)} kg`;
-    node.querySelector('.progress-detail').textContent = `${formatNumber(port.totalPutBags)} bags / target ${formatNumber(port.targetWeight, 0)} kg`;
-    node.querySelector('.material-name').textContent = port.materialName || 'No material assigned';
+    node.querySelector('.progress-detail').textContent = `当前（历史）累计 ${formatNumber(port.totalPutBags)} 袋 bags / 目标 target ${formatNumber(port.targetWeight, 0)} kg`;
+    node.querySelector('.material-name').textContent = port.materialName || '未分配物料 / No material assigned';
     node.querySelector('.material-meta').textContent = `Code ${port.materialCode || '--'} | Batch ${port.batchCode || '--'}`;
+    node.querySelector('.state-strip').innerHTML = [
+      createStateBadge('当前（历史）料口状态 Current (History) Port State', port.portState),
+      createStateBadge('当前（历史）灯状态 Current (History) Lamp', port.lampState),
+      createStateBadge('当前（历史）旁路状态 Current (History) Bypass', port.bypassState)
+    ].join('');
 
     node.querySelector('.signals').innerHTML = [
-      createSignal('Power', port.tags.power),
-      createSignal('2nd Check', port.tags.secondCheck),
-      createSignal('Green Lamp', port.tags.greenLamp),
-      createSignal('Red Lamp', port.tags.redLamp),
-      createSignal('Locked', port.tags.locked),
-      createSignal('Bypass', port.tags.bypass)
+      createSignal('上电 Power', port.tags.power),
+      createSignal('二次校验 2nd Check', port.tags.secondCheck),
+      createSignal('绿灯 Green Lamp', port.tags.greenLamp),
+      createSignal('红灯 Red Lamp', port.tags.redLamp),
+      createSignal('锁定 Locked', port.tags.locked),
+      createSignal('旁路 Bypass', port.tags.bypass)
     ].join('');
 
     node.querySelector('.port-meta-grid').innerHTML = [
-      createMeta('Last Scan', formatTimestamp(port.lastScanTime)),
-      createMeta('Port Type', port.portTypeDesc || port.portType || '--'),
-      createMeta('Created', formatTimestamp(port.createdTime)),
-      createMeta('Updated', formatTimestamp(port.updatedTime))
+      createMeta('当前（历史）最后扫码 Current (History) Last Scan', formatTimestamp(port.lastScanTime)),
+      createMeta('料口类型 Port Type', port.portTypeDesc || port.portType || '--'),
+      createMeta('创建时间 Created', formatTimestamp(port.createdTime)),
+      createMeta('更新时间 Updated', formatTimestamp(port.updatedTime))
     ].join('');
 
     elements.portsGrid.appendChild(node);
+  });
+}
+
+function renderHistoryRecords(historyRecords) {
+  state.historyRecords = [...historyRecords];
+  elements.historyRecords.innerHTML = '';
+  elements.historyCountLabel.textContent = `${historyRecords.length} 条记录 ${historyRecords.length} records`;
+  elements.exportHistoryCsvButton.disabled = historyRecords.length === 0;
+  elements.exportHistoryExcelButton.disabled = historyRecords.length === 0;
+
+  if (!historyRecords.length) {
+    elements.historyRecords.innerHTML = '<div class="empty-state">所选时间范围内没有投料历史记录。 No feeding history found in the selected window.</div>';
+    return;
+  }
+
+  historyRecords.forEach((historyItem) => {
+    const row = document.createElement('article');
+    row.className = 'history-item';
+    row.innerHTML = `
+      <div class="history-item-main">
+        <div>
+          <p class="history-port">${historyItem.portName || `Port ${historyItem.portCode}`}</p>
+          <h3>${historyItem.materialName || '未分配物料 / No material assigned'}</h3>
+        </div>
+        <span class="status-pill tone-active">${formatNumber(historyItem.pushWeight, 2)} kg</span>
+      </div>
+      <div class="history-meta-grid">
+        <div class="meta-item"><span>料口 Port</span><strong>${historyItem.portCode || '--'}</strong></div>
+        <div class="meta-item"><span>批次 Batch</span><strong>${historyItem.batchCode || '--'}</strong></div>
+        <div class="meta-item"><span>扫码时间 Scan Time</span><strong>${formatTimestamp(historyItem.scanTime)}</strong></div>
+        <div class="meta-item"><span>操作人 Operator</span><strong>${historyItem.scanUser || '--'}</strong></div>
+      </div>
+    `;
+    elements.historyRecords.appendChild(row);
   });
 }
 
@@ -315,7 +513,7 @@ function setRefreshState(message, healthy = true) {
 
 async function loadDashboard() {
   elements.windowLabel.textContent = getWindowLabel();
-  setRefreshState('Refreshing live data...', true);
+  setRefreshState('正在刷新实时数据... Refreshing live data...', true);
 
   try {
     const query = buildQuery();
@@ -333,12 +531,14 @@ async function loadDashboard() {
     renderBreakdown(payload.summary);
     renderRecentScans(payload.summary);
     renderPorts(payload.ports);
+    renderHistoryRecords(payload.historyRecords || []);
     elements.lastRefresh.textContent = formatTimestamp(payload.generatedAt);
-    setRefreshState('Live polling active', true);
+    setRefreshState('实时轮询已开启 Live polling active', true);
   } catch (error) {
     elements.recentScans.innerHTML = `<div class="empty-state">${error.message}</div>`;
-    elements.portsGrid.innerHTML = '<div class="empty-state">Dashboard data is unavailable.</div>';
-    setRefreshState('Connection warning', false);
+    elements.portsGrid.innerHTML = '<div class="empty-state">看板数据暂不可用。 Dashboard data is unavailable.</div>';
+    elements.historyRecords.innerHTML = '<div class="empty-state">历史数据暂不可用。 History data is unavailable.</div>';
+    setRefreshState('连接告警 Connection warning', false);
   }
 }
 
@@ -352,7 +552,7 @@ function resetAutoRefresh() {
     state.timerId = setInterval(loadDashboard, state.pollingMs);
   }
 
-  elements.pollingMode.textContent = state.autoRefresh ? 'AUTO' : 'MANUAL';
+  elements.pollingMode.textContent = state.autoRefresh ? '自动 AUTO' : '手动 MANUAL';
 }
 
 elements.refreshToggle.addEventListener('click', () => {
@@ -388,6 +588,8 @@ elements.applyHiddenPortsButton.addEventListener('click', () => {
 });
 
 elements.applyFiltersButton.addEventListener('click', loadDashboard);
+elements.exportHistoryCsvButton.addEventListener('click', exportHistoryCsv);
+elements.exportHistoryExcelButton.addEventListener('click', exportHistoryExcel);
 
 initializeDefaultWindow();
 resetAutoRefresh();

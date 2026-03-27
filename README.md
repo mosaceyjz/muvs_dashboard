@@ -1,87 +1,215 @@
-# Chengdu 6F MUVS Real-time Dashboard
+# Chengdu 6F MUVS 实时看板用户手册
 
-## Run
+## 1. 系统简介
 
-1. Copy `.env.example` to `.env` and fill in the SQL Server credentials.
-2. Run `npm install`.
-3. Run `npm start`.
-4. Open `http://localhost:3036`.
-5. Open `http://localhost:3036/board` for the operator-facing big screen board.
-6. Open `http://localhost:3036/nav` for the navigation hub.
+本项目提供 3 个页面：
 
-## Notes
+1. 主看板 `/`
+2. 操作大屏 `/board`
+3. 导航页 `/nav`
 
-- The backend only reads data through `dbo.GetPortState_Test`.
-- The browser never connects to SQL Server directly.
-- Default query window is the current day from `00:00:00` to now unless the UI filter overrides it.
-- The operator board is bilingual (Chinese + English) and is tuned for 1-5 minute refresh intervals.
-- API responses are cached in memory for 60 seconds by default to avoid unnecessary database load from multiple screens.
+系统通过后端服务读取 SQL Server 中的 `dbo.GetPortState_Test` 数据，不会让浏览器直接连接数据库。
 
-## Open On Another PC
+## 2. 页面功能说明
 
-1. `http://localhost:3036` only works on the same PC that is running `npm start`.
-2. For another PC on the same factory LAN, open `http://<server-ip>:3036`, `http://<server-ip>:3036/board`, or `http://<server-ip>:3036/nav`.
-3. The dashboard server must be running on the host PC, and Windows Firewall must allow inbound traffic on port `3036`.
-4. The other PC must be able to reach the host PC over the local network.
+### 2.1 主看板 Main Dashboard
 
-## Install As A Long-Running Server Task
+主看板用于查看指定时间范围内的料口投料情况，适合班组长、工程师、管理人员按时间段分析。
 
-1. On the target server, copy the full `muvs-dashboard` folder.
-2. Install Node.js on that server.
-3. Create `.env` from `.env.server.example` and fill in the database settings.
-4. Run `npm install`.
-5. Run `powershell -ExecutionPolicy Bypass -File .\scripts\install-dashboard-task.ps1` as Administrator.
-6. Reboot the server or manually start the scheduled task `MUVS-Dashboard`.
-7. Open `http://localhost:3036/nav` on the server itself, or `http://<server-ip>:3036/nav` from another PC on the same LAN.
+主看板功能如下：
 
-## Port Visibility Feature
+1. 支持选择开始时间 `Start time` 和结束时间 `End time`。
+2. 支持按料口编号筛选。
+3. 支持自动刷新开关。
+4. 支持手动刷新。
+5. 支持选择隐藏部分料口，适应不同屏幕尺寸。
+6. 顶部指标卡显示：
+	- 在线料口数
+	- 可投料口数
+	- 所选时间段累计袋数
+	- 异常料口数
+	- 旁路料口数
+7. 总览面板显示：
+	- 累计重量
+	- 活跃料口
+	- 轮询状态
+	- 平均完成率
+8. 状态分布面板显示：
+	- 可投料
+	- 投料中
+	- 已上电
+	- 待机
+	- 锁定
+	- 报警
+	- 旁路开启
+	- OPC 通讯异常
+9. 最近扫码记录面板显示最近的扫码活动。
+10. 历史投料记录面板支持导出 CSV 和 Excel。
+11. 每个料口卡片显示：
+	 - 料口名称与编号
+	 - 当前（历史）主状态
+	 - 当前（历史）累计重量
+	 - 当前（历史）累计袋数
+	 - 当前（历史）完成率
+	 - 当前（历史）物料和批次
+	 - 当前（历史）料口状态
+	 - 当前（历史）灯状态
+	 - 当前（历史）旁路状态
+	 - 上电、二次校验、红灯、绿灯、锁定、旁路等信号灯
+	 - 当前（历史）最后扫码时间、料口类型、创建时间、更新时间
 
-- Both dashboards now support manually hiding specific ports.
-- The selection is sent to the backend as `hiddenPorts`, so summaries and cards are recalculated only for visible ports.
-- The backend applies this filter after cached base data is loaded, so hiding ports does not add extra database pressure.
-- The hidden port selection is also stored in the browser, so the same PC keeps the preferred visible layout after refresh.
+### 2.2 操作大屏 Operator Board
 
-## Server Setup Tutorial
+操作大屏固定显示“当天 00:00 到当前时间”的数据，不允许手动修改时间范围，适合车间大屏持续展示。
 
-1. Prepare a Windows server or always-on PC that can reach the SQL Server and can be reached by shop-floor screens.
-2. Install Node.js LTS.
-3. Copy the whole `muvs-dashboard` folder onto the server, for example to `C:\Apps\muvs-dashboard`.
-4. In that folder, create `.env` based on `.env.server.example`.
-5. Fill in at least `DB_SERVER`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `APP_PORT`, and optionally `APP_HOST=0.0.0.0`.
-6. Open PowerShell as Administrator.
-7. Run `cd C:\Apps\muvs-dashboard`.
-8. Run `npm install`.
-9. Test once with `npm start` and confirm that `http://localhost:3036/nav` opens correctly.
-10. Stop the test process.
-11. Run `powershell -ExecutionPolicy Bypass -File .\scripts\install-dashboard-task.ps1`.
-12. Confirm that the scheduled task `MUVS-Dashboard` exists in Task Scheduler.
-13. Confirm that TCP port `3036` is allowed in Windows Firewall.
-14. Reboot the server or manually run the `MUVS-Dashboard` task.
-15. From other PCs on the same LAN, open `http://<server-ip>:3036/nav`.
-16. Use `/` for the main dashboard and `/board` for the operator board.
+操作大屏功能如下：
 
-### If `npm` is not recognized on the server
+1. 固定显示今日数据窗口。
+2. 支持 1 分钟、2 分钟、3 分钟、5 分钟刷新周期。
+3. 支持手动立即刷新。
+4. 支持全屏显示。
+5. 支持选择隐藏部分料口。
+6. 顶部指标卡显示：
+	- 今日累计总袋数
+	- 运行料口数
+	- 异常料口数
+	- 旁路料口数
+7. 今日总览显示：
+	- 总重量
+	- 就绪料口数
+	- 平均完成率
+8. 最近扫码区域显示今日最近扫码记录。
+9. 每个料口卡片重点显示：
+	- 已投袋数
+	- 当前物料与批次
+	- 重量
+	- 进度
+	- 最后扫码时间
+	- 料口状态
+	- 灯状态
+	- 旁路状态
+10. 如果某个料口处于 bypass，整张卡片会高亮为红色，便于现场快速识别。
 
-1. Confirm Node.js LTS is installed.
-2. Close and reopen PowerShell after installation.
-3. Try `node -v` and `npm -v`.
-4. If `npm` is still not found, try `& "C:\Program Files\nodejs\npm.cmd" install`.
-5. If that works, add `C:\Program Files\nodejs\` to the system PATH.
+### 2.3 导航页 Navigation Hub
 
-## Environment Templates
+导航页用于快速切换到主看板或操作大屏。
 
-- `.env.example`: minimal local development template.
-- `.env.server.example`: recommended template for Windows server or factory LAN deployment.
+## 3. 状态说明
 
-## GitHub Pages
+系统当前基于数据库字段判断 3 类状态：
 
-- GitHub Pages cannot run `server.js`, so it cannot safely connect to SQL Server or keep the database password hidden.
-- You can publish only the static frontend to GitHub Pages, but it will not work unless the API is hosted somewhere else and configured for cross-origin access.
-- For production inside the factory, the practical options are a local Windows host, an internal VM/server, IIS reverse proxy, or Docker on an internal machine.
+1. 灯状态 `Lamp State`
+	- 红灯亮
+	- 绿灯亮
+	- 红绿灯同时亮
+	- 灯灭
 
-## Impact Of Future Function Changes
+2. 料口状态 `Port State`
+	- OPC Fault
+	- Bypass Active
+	- Locked
+	- Alarm
+	- Feeding
+	- Ready To Feed
+	- Power On
+	- Idle
 
-- Both dashboards use the same backend endpoint, and that endpoint reads from `dbo.GetPortState_Test`.
-- If you change only the internal calculation logic of the procedure while keeping the same output columns and meanings, both dashboards will update automatically and continue to work.
-- If you rename, remove, or change the meaning of returned columns such as `TotalPutBags`, `TotalPutWeight`, `PutProgress`, `PortName`, or `CurrentMatName`, both dashboards will be affected.
-- If you add new columns without removing existing ones, the dashboards will not break, and I can later extend the UI to use the new fields.
+3. 旁路状态 `Bypass State`
+	- Bypass On
+	- Bypass Off
+
+料口状态优先级从高到低为：
+
+1. OPC Fault
+2. Bypass Active
+3. Locked
+4. Alarm
+5. Feeding
+6. Ready To Feed
+7. Power On
+8. Idle
+
+## 4. 主看板使用方法
+
+1. 打开 `/` 页面。
+2. 如需查看某一时间范围，设置开始时间和结束时间。
+3. 如需只看某个料口，可输入料口编号。
+4. 点击“刷新看板 Refresh Dashboard”获取数据。
+5. 如需持续刷新，保持“自动刷新 Auto refresh”为开启状态。
+6. 如需隐藏部分料口，点击“选择显示料口”，勾选需要显示的料口后应用。
+
+## 5. 操作大屏使用方法
+
+1. 打开 `/board` 页面。
+2. 页面会自动按“今日 00:00 到当前时间”加载数据。
+3. 根据现场需要选择刷新周期。
+4. 点击“Refresh Now / 立即刷新”可手动刷新。
+5. 点击“Fullscreen / 全屏”可进入全屏展示模式。
+6. 如需隐藏部分料口，点击“Visible Ports / 显示料口”进行设置。
+
+## 6. 端口隐藏功能说明
+
+1. 主看板和操作大屏都支持隐藏料口。
+2. 隐藏料口后，汇总统计和卡片列表都会基于“当前显示的料口”重新计算。
+3. 隐藏设置会保存到浏览器本地，下次打开同一台电脑时会继续生效。
+
+## 7. 部署与启动
+
+### 7.1 本机启动
+
+1. 将 `.env.example` 或 `.env.server.example` 复制为 `.env`。
+2. 填写数据库连接信息。
+3. 执行 `npm install`。
+4. 执行 `npm start`。
+5. 打开 `http://localhost:3036/nav`。
+
+### 7.2 局域网访问
+
+1. `localhost` 只能在服务所在机器访问。
+2. 其他电脑请使用 `http://<服务器IP>:3036`。
+3. 操作大屏地址为 `http://<服务器IP>:3036/board`。
+4. 导航页地址为 `http://<服务器IP>:3036/nav`。
+5. 服务器防火墙需要放行 `3036` 端口。
+
+### 7.3 长期运行
+
+1. 建议部署到一台持续开机的 Windows 服务器或工位机。
+2. 安装 Node.js LTS。
+3. 把整个 `muvs-dashboard` 目录复制到服务器。
+4. 完成 `.env` 配置。
+5. 先用 `npm start` 测试一次。
+6. 再使用 `scripts/start-dashboard.ps1` 或计划任务方式长期运行。
+
+## 8. 常见问题
+
+### 8.1 `npm` 无法识别
+
+1. 确认已安装 Node.js。
+2. 关闭并重新打开 PowerShell。
+3. 执行 `node -v` 和 `npm -v` 检查。
+4. 如仍失败，可执行 `& "C:\Program Files\nodejs\npm.cmd" install`。
+
+### 8.2 GitHub Pages 能不能直接部署
+
+不能直接完整部署。
+
+原因：
+
+1. GitHub Pages 只能托管静态页面。
+2. 本项目需要 Node.js 后端连接 SQL Server。
+3. 数据库账号密码不能暴露在前端页面中。
+
+## 9. 与数据库对象的关系
+
+1. 当前后端通过 `dbo.GetPortState_Test` 读取数据。
+2. 如果只修改该过程内部逻辑，但保持输出列名和含义不变，前端通常无需改动。
+3. 如果修改了关键输出字段名称或含义，例如 `TotalPutBags`、`TotalPutWeight`、`PutProgress`、`PortName`、`CurrentMatName` 等，则前端也需要同步调整。
+
+## 10. 当前版本关键行为
+
+1. 主看板支持自定义时间范围。
+2. 操作大屏固定显示当天。
+3. 主看板和操作大屏都支持中英文关键信息展示。
+4. 旁路料口在操作大屏会整卡高亮为红色。
+5. API 默认带有内存缓存，减少数据库压力。
+6. 当 `Bypass Ports` 大于 0 时，主看板和操作大屏上的该 KPI 卡片会自动强化为更醒目的红色。

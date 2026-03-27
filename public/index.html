@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,77 +12,82 @@
       <div class="backdrop backdrop-b"></div>
       <header class="hero panel">
         <div>
-          <p class="eyebrow">MUVS Plant Intelligence Layer</p>
+          <p class="eyebrow">MUVS 工厂智能中枢 MUVS Plant Intelligence Layer</p>
           <h1>Chengdu 6F MUVS Real-time Dashboard</h1>
-          <p class="hero-copy">Real-time visibility for port readiness, material matching, and feeding throughput.</p>
+          <p class="hero-copy">实时查看料口就绪状态、物料匹配情况与投料进度。 Real-time visibility for port readiness, material matching, and feeding throughput.</p>
         </div>
         <div class="hero-status">
-          <div class="pulse-chip"><span class="pulse-dot"></span><span id="refreshState">Live polling active</span></div>
-          <div class="meta-line">Last refresh <strong id="lastRefresh">--</strong></div>
-          <div class="meta-line">Data window <strong id="windowLabel">Today</strong></div>
-          <div class="meta-line"><a class="board-link" href="/nav">Open Navigation Hub</a></div>
-          <div class="meta-line"><a class="board-link" href="/board" target="_blank" rel="noreferrer">Open Operator Board</a></div>
+          <div class="pulse-chip"><span class="pulse-dot"></span><span id="refreshState">实时轮询已开启 Live polling active</span></div>
+          <div class="meta-line">最后刷新 Last refresh <strong id="lastRefresh">--</strong></div>
+          <div class="meta-line">数据窗口 Data window <strong id="windowLabel">今日 Today</strong></div>
+          <div class="meta-line"><a class="board-link" href="/nav">打开导航页 Open Navigation Hub</a></div>
+          <div class="meta-line"><a class="board-link" href="/board" target="_blank" rel="noreferrer">打开操作大屏 Open Operator Board</a></div>
         </div>
       </header>
 
       <section class="toolbar panel">
         <label>
-          <span>Port</span>
-          <input id="portCodeInput" type="text" placeholder="All ports" />
+          <span>料口 Port</span>
+          <input id="portCodeInput" type="text" placeholder="全部料口 All ports" />
         </label>
         <label>
-          <span>Start time</span>
+          <span>开始时间 Start time</span>
           <input id="startTimeInput" type="datetime-local" />
         </label>
         <label>
-          <span>End time</span>
+          <span>结束时间 End time</span>
           <input id="endTimeInput" type="datetime-local" />
         </label>
         <label class="toggle-wrap">
-          <span>Auto refresh</span>
+          <span>自动刷新 Auto refresh</span>
           <button id="refreshToggle" class="toggle active" type="button">ON</button>
         </label>
-        <button id="visibilityToggleButton" class="action-button secondary-button" type="button">Choose Visible Ports</button>
-        <button id="applyFiltersButton" class="action-button" type="button">Refresh Dashboard</button>
+        <button id="visibilityToggleButton" class="action-button secondary-button" type="button">选择显示料口 Choose Visible Ports</button>
+        <button id="applyFiltersButton" class="action-button" type="button">刷新看板 Refresh Dashboard</button>
       </section>
 
       <section id="visibilityPanel" class="panel visibility-panel hidden-panel">
         <div class="section-header">
           <div>
-            <p class="section-kicker">Port Visibility</p>
-            <h2>Choose Visible Ports</h2>
+            <p class="section-kicker">料口显示设置 Port Visibility</p>
+            <h2>选择显示料口 Choose Visible Ports</h2>
           </div>
-          <span id="visibilitySummary" class="overview-badge">Visible 0 / Hidden 0</span>
+          <span id="visibilitySummary" class="overview-badge">显示 0 / 隐藏 0</span>
         </div>
         <div class="visibility-actions">
-          <button id="selectAllPortsButton" class="ghost-button" type="button">Show All</button>
-          <button id="hideAllPortsButton" class="ghost-button" type="button">Hide All</button>
-          <button id="resetHiddenPortsButton" class="ghost-button" type="button">Reset</button>
-          <button id="applyHiddenPortsButton" class="action-button" type="button">Apply Visibility</button>
+          <button id="selectAllPortsButton" class="ghost-button" type="button">全部显示 Show All</button>
+          <button id="hideAllPortsButton" class="ghost-button" type="button">全部隐藏 Hide All</button>
+          <button id="resetHiddenPortsButton" class="ghost-button" type="button">重置 Reset</button>
+          <button id="applyHiddenPortsButton" class="action-button" type="button">应用显示设置 Apply Visibility</button>
         </div>
         <div id="visibilityOptions" class="visibility-options"></div>
       </section>
 
       <section class="metrics-grid">
         <article class="metric-card panel accent-cyan">
-          <span class="metric-label">Ports Online</span>
+          <span class="metric-label">在线料口 Ports Online</span>
           <strong id="metricTotalPorts" class="metric-value">0</strong>
-          <span class="metric-foot">Configured feeding ports in current result set</span>
+          <span class="metric-foot">当前结果集中的已配置投料口 Configured feeding ports in current result set</span>
         </article>
         <article class="metric-card panel accent-green">
-          <span class="metric-label">Ready To Feed</span>
+          <span class="metric-label">可投料口 Ready To Feed</span>
           <strong id="metricReadyPorts" class="metric-value">0</strong>
-          <span class="metric-foot">Second check passed and line is green</span>
+          <span class="metric-foot">二次校验通过且绿灯亮 Second check passed and line is green</span>
         </article>
         <article class="metric-card panel accent-amber">
-          <span class="metric-label">Total Bags</span>
+          <span class="metric-label">累计袋数 Total Bags</span>
           <strong id="metricTotalBags" class="metric-value">0</strong>
-          <span class="metric-foot">Accumulated feeding bags within selected window</span>
+          <span class="metric-foot">所选时间段内累计投料袋数 Accumulated feeding bags within selected window</span>
         </article>
         <article class="metric-card panel accent-rose">
-          <span class="metric-label">Alert Ports</span>
+          <span class="metric-label">异常料口 Alert Ports</span>
           <strong id="metricAlertPorts" class="metric-value">0</strong>
-          <span class="metric-foot">Alarm or OPC abnormal status requiring attention</span>
+          <span class="metric-foot">报警或 OPC 异常需关注 Alarm or OPC abnormal status requiring attention</span>
+        </article>
+        <article class="metric-card panel accent-rose">
+          <span class="metric-label">旁路料口 Bypass Ports</span>
+          <strong id="metricBypassPorts" class="metric-value">0</strong>
+          <span class="metric-foot">当前处于旁路状态的料口数量 Total ports currently in bypass status</span>
         </article>
       </section>
 
@@ -90,29 +95,29 @@
         <article class="panel command-center">
           <div class="section-header">
             <div>
-              <p class="section-kicker">Command center</p>
-              <h2>Plant Overview</h2>
+              <p class="section-kicker">指挥中心 Command center</p>
+              <h2>工厂总览 Plant Overview</h2>
             </div>
-            <span id="overviewBadge" class="overview-badge">Awaiting data</span>
+            <span id="overviewBadge" class="overview-badge">等待数据 Awaiting data</span>
           </div>
           <div class="overview-core">
             <div class="radial-progress" id="completionGauge" style="--progress: 0;">
               <div class="radial-progress-inner">
-                <span>Avg. completion</span>
+                <span>平均完成率 Avg. completion</span>
                 <strong id="completionValue">0%</strong>
               </div>
             </div>
             <div class="overview-stats">
               <div>
-                <span>Total Weight</span>
+                <span>累计重量 Total Weight</span>
                 <strong id="metricTotalWeight">0 kg</strong>
               </div>
               <div>
-                <span>Active Ports</span>
+                <span>活跃料口 Active Ports</span>
                 <strong id="metricActivePorts">0</strong>
               </div>
               <div>
-                <span>Polling Status</span>
+                <span>轮询状态 Polling Status</span>
                 <strong id="pollingMode">AUTO</strong>
               </div>
             </div>
@@ -123,8 +128,8 @@
         <article class="panel recent-activity">
           <div class="section-header">
             <div>
-              <p class="section-kicker">Recent trace</p>
-              <h2>Latest Scan Activity</h2>
+              <p class="section-kicker">最近追踪 Recent trace</p>
+              <h2>最近扫码记录 Latest Scan Activity</h2>
             </div>
           </div>
           <div id="recentScans" class="timeline"></div>
@@ -134,12 +139,27 @@
       <section class="panel ports-section">
         <div class="section-header">
           <div>
-            <p class="section-kicker">Port matrix</p>
-            <h2>Feeding Port Status</h2>
+            <p class="section-kicker">料口矩阵 Port matrix</p>
+            <h2>投料口状态 Feeding Port Status</h2>
           </div>
-          <span id="portCountLabel" class="port-count">0 ports</span>
+          <span id="portCountLabel" class="port-count">0 个料口 0 ports</span>
         </div>
         <div id="portsGrid" class="ports-grid"></div>
+      </section>
+
+      <section class="panel history-section">
+        <div class="section-header">
+          <div>
+            <p class="section-kicker">历史投料记录 Feeding history</p>
+            <h2>所选时间段内全部投料记录 All Feeding Records In Window</h2>
+          </div>
+          <div class="history-actions">
+            <span id="historyCountLabel" class="port-count">0 条记录 0 records</span>
+            <button id="exportHistoryCsvButton" class="ghost-button" type="button">导出 CSV Export CSV</button>
+            <button id="exportHistoryExcelButton" class="action-button" type="button">导出 Excel Export Excel</button>
+          </div>
+        </div>
+        <div id="historyRecords" class="history-list"></div>
       </section>
     </div>
 
@@ -160,9 +180,11 @@
           </div>
         </div>
         <div class="material-block">
+          <p class="material-label">当前（历史）物料 Current (History) Material</p>
           <p class="material-name"></p>
           <p class="material-meta"></p>
         </div>
+        <div class="state-strip"></div>
         <div class="signals"></div>
         <div class="port-meta-grid"></div>
       </article>

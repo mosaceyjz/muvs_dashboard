@@ -65,6 +65,36 @@ function formatDateTimeInput(value) {
   return date;
 }
 
+function getDefaultWindowBounds() {
+  const startTime = new Date();
+  startTime.setHours(0, 0, 0, 0);
+  const endTime = new Date(startTime);
+  endTime.setDate(endTime.getDate() + 1);
+
+  return { startTime, endTime };
+}
+
+function resolveWindowBounds(startTime, endTime) {
+  const defaults = getDefaultWindowBounds();
+  return {
+    startTime: startTime || defaults.startTime,
+    endTime: endTime || defaults.endTime
+  };
+}
+
+function normalizeDateTimeOutput(value) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toISOString();
+}
+
 function normalizeHiddenPorts(value) {
   const rawValues = Array.isArray(value) ? value : String(value || '').split(',');
   return [...new Set(rawValues.map((item) => String(item || '').trim()).filter(Boolean))]
@@ -75,36 +105,58 @@ function normalizeBool(value) {
   return String(value || '').toLowerCase() === 'true';
 }
 
-function resolveStatus(row) {
-  if (normalizeBool(row.OPCStatusShow)) {
+function resolveLampState(tags) {
+  if (tags.redLamp && tags.greenLamp) {
+    return { key: 'red-green', label: 'Red + Green On', tone: 'warning' };
+  }
+
+  if (tags.redLamp) {
+    return { key: 'red', label: 'Red Lamp On', tone: 'critical' };
+  }
+
+  if (tags.greenLamp) {
+    return { key: 'green', label: 'Green Lamp On', tone: 'healthy' };
+  }
+
+  return { key: 'off', label: 'Lamp Off', tone: 'muted' };
+}
+
+function resolvePortState({ opcFault, tags, totalPutWeight }) {
+  if (opcFault) {
     return { key: 'opc-error', label: 'OPC Fault', tone: 'critical' };
   }
 
-  if (normalizeBool(row.RedLampTag_Val) && !normalizeBool(row.GreenLampTag_Val)) {
-    return { key: 'alarm', label: 'Alarm', tone: 'critical' };
+  if (tags.bypass) {
+    return { key: 'bypass', label: 'Bypass Active', tone: 'critical' };
   }
 
-  if (normalizeBool(row.LockedTag_Val)) {
+  if (tags.locked) {
     return { key: 'locked', label: 'Locked', tone: 'warning' };
   }
 
-  if (normalizeBool(row.ByPassTag_Val)) {
-    return { key: 'bypass', label: 'Bypass', tone: 'notice' };
+  if (tags.redLamp) {
+    return { key: 'alarm', label: 'Alarm', tone: 'critical' };
   }
 
-  if (normalizeBool(row.SecondCheckTag_Val) && normalizeBool(row.GreenLampTag_Val)) {
-    return { key: 'ready', label: 'Ready To Feed', tone: 'healthy' };
-  }
-
-  if (normalizeBool(row.PowerSwitchTag_Val)) {
-    return { key: 'armed', label: 'Power On', tone: 'active' };
-  }
-
-  if (parseNumber(row.TotalPutWeight) > 0) {
+  if (totalPutWeight > 0) {
     return { key: 'feeding', label: 'Feeding', tone: 'active' };
   }
 
+  if (tags.secondCheck && tags.greenLamp) {
+    return { key: 'ready', label: 'Ready To Feed', tone: 'healthy' };
+  }
+
+  if (tags.power) {
+    return { key: 'armed', label: 'Power On', tone: 'active' };
+  }
+
   return { key: 'idle', label: 'Idle', tone: 'muted' };
+}
+
+function resolveBypassState(tags) {
+  return tags.bypass
+    ? { key: 'bypass-on', label: 'Bypass On', tone: 'critical' }
+    : { key: 'bypass-off', label: 'Bypass Off', tone: 'muted' };
 }
 
 function toPortModel(row) {
@@ -113,7 +165,19 @@ function toPortModel(row) {
   const totalPutBags = parseNumber(row.TotalPutBags);
   const parsedProgress = parseNumber(row.PutProgress);
   const progress = Math.max(0, Math.min(parsedProgress || (targetWeight ? (totalPutWeight / targetWeight) * 100 : 0), 100));
-  const status = resolveStatus(row);
+  const tags = {
+    power: normalizeBool(row.PowerSwitchTag_Val),
+    secondCheck: normalizeBool(row.SecondCheckTag_Val),
+    redLamp: normalizeBool(row.RedLampTag_Val),
+    greenLamp: normalizeBool(row.GreenLampTag_Val),
+    locked: normalizeBool(row.LockedTag_Val),
+    bypass: normalizeBool(row.ByPassTag_Val)
+  };
+  const opcFault = normalizeBool(row.OPCStatusShow);
+  const lampState = resolveLampState(tags);
+  const portState = resolvePortState({ opcFault, tags, totalPutWeight });
+  const bypassState = resolveBypassState(tags);
+  const status = portState;
 
   return {
     gid: row.GID,
@@ -137,44 +201,123 @@ function toPortModel(row) {
       updatedBy: row.MUser || '',
       scannedBy: row.SPut_User || ''
     },
-    tags: {
-      power: normalizeBool(row.PowerSwitchTag_Val),
-      secondCheck: normalizeBool(row.SecondCheckTag_Val),
-      redLamp: normalizeBool(row.RedLampTag_Val),
-      greenLamp: normalizeBool(row.GreenLampTag_Val),
-      locked: normalizeBool(row.LockedTag_Val),
-      bypass: normalizeBool(row.ByPassTag_Val)
-    },
+    tags,
+    opcFault,
+    lampState,
+    portState,
+    bypassState,
     status
   };
 }
 
-function summarize(ports) {
+function toHistoryRecord(row) {
+  return {
+    gid: row.GID || '',
+    portCode: String(row.PortCode || ''),
+    portName: row.PortName || '',
+    materialCode: row.PushMatCode || '',
+    materialName: row.PushMatName || '',
+    batchCode: row.PushMatBatch || '',
+    pushWeight: parseNumber(row.PushWeight),
+    scanTime: normalizeDateTimeOutput(row.STime),
+    scanUser: row.SUser || ''
+  };
+}
+
+function buildHistoryByPort(historyRecords) {
+  return historyRecords.reduce((accumulator, historyItem) => {
+    const key = String(historyItem.portCode || '');
+    const current = accumulator.get(key) || {
+      totalPutWeight: 0,
+      totalPutBags: 0,
+      lastScanTime: '',
+      latestRecord: null
+    };
+
+    current.totalPutWeight += historyItem.pushWeight;
+    current.totalPutBags += 1;
+
+    if (!current.lastScanTime || new Date(historyItem.scanTime).getTime() > new Date(current.lastScanTime).getTime()) {
+      current.lastScanTime = historyItem.scanTime;
+      current.latestRecord = historyItem;
+    }
+
+    accumulator.set(key, current);
+    return accumulator;
+  }, new Map());
+}
+
+function mergePortsWithHistory(ports, historyRecords) {
+  const historyByPort = buildHistoryByPort(historyRecords);
+
+  return ports.map((portItem) => {
+    const historySummary = historyByPort.get(String(portItem.portCode));
+    const totalPutWeight = historySummary ? Number(historySummary.totalPutWeight.toFixed(2)) : 0;
+    const totalPutBags = historySummary ? historySummary.totalPutBags : 0;
+    const lastScanTime = historySummary ? historySummary.lastScanTime : '';
+    const latestRecord = historySummary?.latestRecord;
+    const progress = Math.max(
+      0,
+      Math.min(portItem.targetWeight ? (totalPutWeight / portItem.targetWeight) * 100 : 0, 100)
+    );
+    const portState = resolvePortState({
+      opcFault: portItem.opcFault,
+      tags: portItem.tags,
+      totalPutWeight
+    });
+
+    return {
+      ...portItem,
+      materialCode: latestRecord?.materialCode || portItem.materialCode,
+      materialName: latestRecord?.materialName || portItem.materialName,
+      batchCode: latestRecord?.batchCode || portItem.batchCode,
+      totalPutWeight,
+      totalPutBags,
+      progress: Number(progress.toFixed(1)),
+      lastScanTime,
+      portState,
+      status: portState
+    };
+  });
+}
+
+function summarize(ports, historyRecords) {
   const breakdown = ports.reduce((accumulator, portItem) => {
     accumulator[portItem.status.key] = (accumulator[portItem.status.key] || 0) + 1;
     return accumulator;
   }, {});
 
-  const totalPutWeight = ports.reduce((sum, portItem) => sum + portItem.totalPutWeight, 0);
-  const totalPutBags = ports.reduce((sum, portItem) => sum + portItem.totalPutBags, 0);
+  const totalPutWeight = historyRecords.reduce((sum, historyItem) => sum + historyItem.pushWeight, 0);
+  const totalPutBags = historyRecords.length;
   const readyPorts = ports.filter((portItem) => portItem.status.key === 'ready').length;
   const alertPorts = ports.filter((portItem) => portItem.status.key === 'alarm' || portItem.status.key === 'opc-error').length;
+  const bypassPorts = ports.filter((portItem) => portItem.status.key === 'bypass').length;
   const activePorts = ports.filter((portItem) => ['ready', 'feeding', 'armed'].includes(portItem.status.key)).length;
   const completionAverage = ports.length
     ? ports.reduce((sum, portItem) => sum + portItem.progress, 0) / ports.length
     : 0;
 
-  const recentScans = ports
-    .filter((portItem) => portItem.lastScanTime)
-    .sort((left, right) => new Date(right.lastScanTime).getTime() - new Date(left.lastScanTime).getTime())
+  breakdown.ready = breakdown.ready || 0;
+  breakdown.feeding = breakdown.feeding || 0;
+  breakdown.armed = breakdown.armed || 0;
+  breakdown.idle = breakdown.idle || 0;
+  breakdown.locked = breakdown.locked || 0;
+  breakdown.alarm = breakdown.alarm || 0;
+  breakdown.bypass = breakdown.bypass || 0;
+  breakdown['opc-error'] = breakdown['opc-error'] || 0;
+
+  const recentScans = historyRecords
+    .filter((historyItem) => historyItem.scanTime)
+    .sort((left, right) => new Date(right.scanTime).getTime() - new Date(left.scanTime).getTime())
     .slice(0, 6)
-    .map((portItem) => ({
-      portCode: portItem.portCode,
-      portName: portItem.portName,
-      materialName: portItem.materialName,
-      lastScanTime: portItem.lastScanTime,
-      status: portItem.status.label,
-      totalPutWeight: portItem.totalPutWeight
+    .map((historyItem) => ({
+      portCode: historyItem.portCode,
+      portName: historyItem.portName,
+      materialName: historyItem.materialName,
+      lastScanTime: historyItem.scanTime,
+      status: 'History Record',
+      totalPutWeight: historyItem.pushWeight,
+      scanUser: historyItem.scanUser
     }));
 
   return {
@@ -182,6 +325,7 @@ function summarize(ports) {
     readyPorts,
     activePorts,
     alertPorts,
+    bypassPorts,
     totalPutWeight: Number(totalPutWeight.toFixed(2)),
     totalPutBags,
     completionAverage: Number(completionAverage.toFixed(1)),
@@ -200,6 +344,35 @@ async function fetchPortStates({ portCode, startTime, endTime }) {
 
   const result = await request.execute('dbo.GetPortState_Test');
   return (result.recordset || []).map(toPortModel).sort((left, right) => parseNumber(left.portCode) - parseNumber(right.portCode));
+}
+
+async function fetchPortHistory({ portCode, startTime, endTime }) {
+  const pool = await getPool();
+  const request = pool.request();
+
+  request.input('PortCode', sql.NVarChar(50), portCode || '');
+  request.input('STime', sql.DateTime, startTime || null);
+  request.input('ETime', sql.DateTime, endTime || null);
+
+  const result = await request.query(`
+    SELECT
+      GID,
+      PortCode,
+      PortName,
+      PushMatCode,
+      PushMatName,
+      PushWeight,
+      PushMatBatch,
+      STime,
+      SUser
+    FROM PortHis WITH (NOLOCK)
+    WHERE (@PortCode = '' OR PortCode = @PortCode)
+      AND STime >= @STime
+      AND STime < @ETime
+    ORDER BY STime DESC, TRY_CAST(PortCode AS int)
+  `);
+
+  return (result.recordset || []).map(toHistoryRecord);
 }
 
 function buildCacheKey({ portCode, startTime, endTime }) {
@@ -227,7 +400,11 @@ async function getBaseDashboardPayload({ portCode, startTime, endTime }) {
     };
   }
 
-  const ports = await fetchPortStates({ portCode, startTime, endTime });
+  const [basePorts, historyRecords] = await Promise.all([
+    fetchPortStates({ portCode, startTime, endTime }),
+    fetchPortHistory({ portCode, startTime, endTime })
+  ]);
+  const ports = mergePortsWithHistory(basePorts, historyRecords);
   const payload = {
     title: 'Chengdu 6F MUVS Real-time Dashboard',
     generatedAt: new Date().toISOString(),
@@ -241,6 +418,7 @@ async function getBaseDashboardPayload({ portCode, startTime, endTime }) {
       portCode: portItem.portCode,
       portName: portItem.portName
     })),
+    historyRecords,
     ports
   };
 
@@ -263,6 +441,7 @@ async function getBaseDashboardPayload({ portCode, startTime, endTime }) {
 function applyHiddenPorts(basePayload, hiddenPorts) {
   const hiddenPortSet = new Set(hiddenPorts);
   const visiblePorts = basePayload.ports.filter((portItem) => !hiddenPortSet.has(String(portItem.portCode)));
+  const visibleHistoryRecords = basePayload.historyRecords.filter((historyItem) => !hiddenPortSet.has(String(historyItem.portCode)));
   const hiddenPortCount = basePayload.availablePorts.filter((portItem) => hiddenPortSet.has(String(portItem.portCode))).length;
 
   return {
@@ -272,10 +451,11 @@ function applyHiddenPorts(basePayload, hiddenPorts) {
       hiddenPorts
     },
     summary: {
-      ...summarize(visiblePorts),
+      ...summarize(visiblePorts, visibleHistoryRecords),
       hiddenPortCount,
       availablePortCount: basePayload.availablePorts.length
     },
+    historyRecords: visibleHistoryRecords,
     ports: visiblePorts
   };
 }
@@ -302,8 +482,9 @@ app.get('/api/health', async (request, response) => {
 
 app.get('/api/dashboard', async (request, response) => {
   try {
-    const startTime = formatDateTimeInput(request.query.startTime);
-    const endTime = formatDateTimeInput(request.query.endTime);
+    const requestedStartTime = formatDateTimeInput(request.query.startTime);
+    const requestedEndTime = formatDateTimeInput(request.query.endTime);
+    const { startTime, endTime } = resolveWindowBounds(requestedStartTime, requestedEndTime);
     const portCode = String(request.query.portCode || '').trim();
     const hiddenPorts = normalizeHiddenPorts(request.query.hiddenPorts);
     const basePayload = await getBaseDashboardPayload({ portCode, startTime, endTime });
